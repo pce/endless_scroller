@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 # Project name and version
-project(endless-project VERSION 1.0)
+project(endless_scoller VERSION 1.0)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -74,6 +74,15 @@ endif()
 
 # Link libraries to the project
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui rlimgui raylib)
+
+# Copy resources folder to the output directory
+set(RESOURCE_DIR "${SRC_DIR}/resources")
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${RESOURCE_DIR} $<TARGET_FILE_DIR:${PROJECT_NAME}>/resources
+)
+
 
 # ==== WASM Configuration ====
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")

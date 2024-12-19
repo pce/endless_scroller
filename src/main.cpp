@@ -58,6 +58,9 @@ public:
     SetTargetFPS(60);
     rlImGuiSetup(true);
     InitEntities();
+    planetFloorShader = LoadShader(0, "resources/shaders/gsl330/planet_plane.fs");
+    skyShader = LoadShader(0, "resources/shaders/gsl330/lunar_sky.fs");
+
   }
 
   void Shutdown() {
@@ -91,6 +94,14 @@ private:
   std::vector<Entity> entities;
 
   PlayerStats stats;
+
+  Shader planetFloorShader;
+  Shader skyShader;
+  // lighning
+  float lightningTimer = 0.0f;
+  float lightningFlashDuration = 0.2f;
+  float lightningCooldown = 3.0f; // Time between lightning strikes
+  bool isLightningActive = false;
 
   void InitEntities() {
     // Add some obstacles
@@ -179,6 +190,20 @@ private:
     DrawText("                 - Press [f] to toggle Fullscreen", 100, 300, 10, DARKBLUE);
   }
 
+  void DrawSky() {
+    BeginShaderMode(skyShader);
+    DrawSphere(Vector3{0,0,0}, 100.0f, WHITE);
+    EndShaderMode();
+    if (isLightningActive) {
+        DrawLightningBolt(Vector3{0.0f + GetRandomValue(-10, 10), 5.0f, -10.0f},
+                          Vector3{0.0f + GetRandomValue(-10, 10), 0.0f, -10.0f});
+    }
+  }
+
+  void DrawLightningBolt(Vector3 startPos, Vector3 endPos) {
+      DrawLine3D(startPos, endPos, WHITE);
+  }
+
   void DrawGameOverScreen() {
     DrawText("Press [ENTER] to restart ...", 100, 50, 20, DARKBLUE);
 
@@ -215,10 +240,34 @@ private:
     if (inputMade) {
         stats.keystrokes++;
     }
-    // Endless scrolling logic
     // playerPosition.z += playerSpeed * GetFrameTime();
-    if (playerPosition.z > 5.0f)
-      playerPosition.z = -5.0f;
+    // Clamp Player bounds
+    if (playerPosition.z > 2.0f) {
+      playerPosition.z = 2.0f;
+    } else if (playerPosition.z < -1.0f) {
+        playerPosition.z = -1.0f;
+    }
+    if (playerPosition.x > 4.0f) {
+      playerPosition.x = 4.0f;
+    } else if (playerPosition.x < -4.0f) {
+        playerPosition.x = -4.0f;
+    }
+
+    // Update Lightning
+    lightningTimer += GetFrameTime();
+
+    if (!isLightningActive && lightningTimer > lightningCooldown) {
+        isLightningActive = true;
+        lightningTimer = 0.0f; // Reset timer for flash duration
+    }
+
+    if (isLightningActive && lightningTimer > lightningFlashDuration) {
+        isLightningActive = false;
+        lightningCooldown = 2.0f + GetRandomValue(1, 5); // Randomize next strike
+        lightningTimer = 0.0f;
+    }
+
+    // Endless scrolling logic
 
     // Update entity positions (endless scrolling effect)
     for (auto& entity : entities) {
@@ -264,7 +313,13 @@ private:
   }
 
   void DrawFloor() {
-      DrawGrid(10, 1.0f);
+      // DrawGrid(10, 1.0f);
+      BeginShaderMode(planetFloorShader);
+      for (int i = 0; i < 10; ++i) { // Number of planes visible at a time
+          Vector3 planePosition = Vector3{0.0f, 0.0f, playerPosition.z - (i * 10.0f)};
+          DrawPlane(planePosition, Vector2{10.0f, 10.0f}, LIGHTGRAY);
+      }
+      EndShaderMode();
   }
 
 
@@ -290,6 +345,9 @@ private:
         CAMERA_PERSPECTIVE,        // Camera mode
     });
 
+    DrawSky();
+    DrawFloor();
+
     // Draw the player player
     DrawCube(playerPosition, 1.0f, 1.0f, 1.0f, BLUE);
 
@@ -299,8 +357,6 @@ private:
                entity.color);
     }
 
-
-    DrawFloor();
     EndMode3D();
 
     // HUD
